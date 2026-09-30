@@ -7,6 +7,8 @@ import { axisCommon, baseTooltip, useChartTheme } from '@/charts/setup';
 import { formatPrice } from '@/domain/format';
 import { db } from '@/db/local';
 import { loadDaily } from '@/sync/history';
+import { apiBase } from '@/device/settings';
+import { fetchKrakenCandles, krakenSymbolFor } from '@/live/kraken';
 
 const props = defineProps<{ quoteKey: string; currency: string }>();
 const theme = useChartTheme();
@@ -23,21 +25,37 @@ async function load(): Promise<void> {
     const from = new Date(Date.now() - 366 * 86_400_000).toISOString().slice(0, 10);
     const closes = (await loadDaily(db, [props.quoteKey], from))[props.quoteKey] ?? [];
     points.value = closes.slice(-365).map((c) => ({ ts: Date.parse(`${c.day}T12:00:00Z`), close: c.close }));
-    if (points.value.length === 0) note.value = 'Historique pas encore disponible : la tour le télécharge au prochain passage.';
+    if (points.value.length === 0) note.value = apiBase() === null ? 'Pas d’historique sans tour pour cet actif (crypto : Kraken ; actions US : clé Twelve Data dans Profil).' : 'Historique pas encore disponible : la tour le télécharge au prochain passage.';
     return;
   }
-  const params = new URLSearchParams(
-    range.value === '1j' ? { key: props.quoteKey, interval: '5m', hours: '24' } : { key: props.quoteKey, interval: '1h', hours: String(24 * 7) },
-  );
-  try {
-    const res = await fetch(`/api/prices/candles?${params}`, { signal: AbortSignal.timeout(8000) });
-    if (!res.ok) throw new Error(String(res.status));
-    const candles = (await res.json()) as Candle[];
-    points.value = candles.map((c) => ({ ts: c.ts, close: c.close }));
-    if (points.value.length === 0) note.value = 'Aucune donnée intraday pour l’instant : elle s’accumule dès que la tour suit cet actif.';
-  } catch {
-    note.value = 'La tour ne répond pas : historique intraday indisponible. Essaie la vue 1 an, gardée sur l’appareil.';
+  const intraday = range.value === '1j' ? { interval: '5m', hours: 24, minutes: 5 as const } : { interval: '1h', hours: 24 * 7, minutes: 60 as const };
+  const base = apiBase();
+  if (base !== null) {
+    try {
+      const params = new URLSearchParams({ key: props.quoteKey, interval: intraday.interval, hours: String(intraday.hours) });
+      const res = await fetch(`${base}/api/prices/candles?${params}`, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) throw new Error(String(res.status));
+      const candles = (await res.json()) as Candle[];
+      points.value = candles.map((c) => ({ ts: c.ts, close: c.close }));
+      if (points.value.length) return;
+    } catch {
+      // Tour injoignable : on tente Kraken directement
+    }
   }
+  const kraken = krakenSymbolFor(props.quoteKey);
+  if (kraken) {
+    try {
+      const since = Date.now() - intraday.hours * 3600_000;
+      const candles = await fetchKrakenCandles(kraken, intraday.minutes);
+      points.value = candles.filter((c) => c.ts >= since).map((c) => ({ ts: c.ts, close: c.close }));
+      if (points.value.length) return;
+    } catch {
+      // Kraken indisponible
+    }
+  }
+  note.value = base === null
+    ? 'Historique intraday disponible en direct pour la crypto uniquement sans tour. Essaie la vue 1 an.'
+    : 'Pas d’historique intraday pour l’instant. Essaie la vue 1 an, gardée sur l’appareil.';
 }
 
 watch(() => [props.quoteKey, range.value], load, { immediate: true });

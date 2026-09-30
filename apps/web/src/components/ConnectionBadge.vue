@@ -13,8 +13,14 @@ const status = computed(() => {
   if (mode === 'tower') {
     return { tone: 'ok', title: 'Tour connectée', detail: `Synchro ${formatAge(app.syncState.lastSyncAt, app.now)}${pendingText}` };
   }
+  if (app.liveState.standalone) {
+    const kraken = app.liveState.feed.kraken;
+    if (kraken && !kraken.ok) return { tone: 'warn', title: 'Sur ce téléphone', detail: 'Kraken injoignable, derniers cours connus' };
+    const td = app.liveState.feed.td?.ok ? ', actions US via Twelve Data' : '';
+    return { tone: 'ok', title: 'Sur ce téléphone', detail: `Crypto en direct via Kraken${td}` };
+  }
   if (mode === 'direct') {
-    return { tone: 'warn', title: 'Mode autonome', detail: `Crypto en direct via Kraken, le reste figé${pendingText}` };
+    return { tone: 'warn', title: 'Mode autonome', detail: `Tour injoignable, crypto en direct via Kraken${pendingText}` };
   }
   if (mode === 'offline') {
     return { tone: 'bad', title: 'Hors ligne', detail: `Dernières valeurs connues${pendingText}` };

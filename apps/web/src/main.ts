@@ -1,17 +1,23 @@
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
-import { createRouter, createWebHistory } from 'vue-router';
+import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router';
+import { STANDALONE_BUILD } from './device/settings';
 import './style.css';
 import App from './App.vue';
 
 const router = createRouter({
-  history: createWebHistory(),
+  // Sur GitHub Pages, les adresses en « #/ » évitent les erreurs 404 au rechargement d'un écran.
+  history: STANDALONE_BUILD ? createWebHashHistory(import.meta.env.BASE_URL) : createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/', component: () => import('./views/DashboardView.vue') },
     { path: '/portefeuille', component: () => import('./views/PortfolioView.vue') },
     { path: '/marches', component: () => import('./views/MarketsView.vue') },
     { path: '/flux', component: () => import('./views/FlowsView.vue') },
     { path: '/profil', component: () => import('./views/ProfileView.vue') },
+    { path: '/analyse', component: () => import('./views/AnalysisView.vue') },
+    { path: '/agent', component: () => import('./views/AgentView.vue') },
+    { path: '/bilan', component: () => import('./views/ReportView.vue') },
+    { path: '/plus', component: () => import('./views/MoreView.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
   scrollBehavior: () => ({ top: 0 }),

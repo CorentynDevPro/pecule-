@@ -1,0 +1,30 @@
+-- Phase 3 : opérations de l'agent (fictives pendant l'entraînement).
+CREATE TABLE IF NOT EXISTS agent_trade (
+  id uuid PRIMARY KEY,
+  quote_key text NOT NULL,
+  asset_name text NOT NULL,
+  currency text NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
+  mode text NOT NULL CHECK (mode IN ('paper', 'real')),
+  signal text NOT NULL CHECK (signal IN ('trend', 'reversion')),
+  status text NOT NULL CHECK (status IN ('proposed', 'open', 'closed', 'rejected', 'expired')),
+  reason text NOT NULL DEFAULT '',
+  entry_price numeric(24, 10) NOT NULL,
+  stop_price numeric(24, 10) NOT NULL,
+  target_price numeric(24, 10) NOT NULL,
+  quantity numeric(28, 12) NOT NULL DEFAULT 0,
+  stake_cents bigint NOT NULL DEFAULT 0,
+  leverage numeric(4, 2) NOT NULL DEFAULT 1 CHECK (leverage BETWEEN 1 AND 5),
+  backtest_win_rate numeric(6, 5) NOT NULL,
+  backtest_expectancy_pct numeric(12, 6) NOT NULL,
+  backtest_samples integer NOT NULL,
+  proposed_at timestamptz NOT NULL,
+  opened_at timestamptz,
+  closed_at timestamptz,
+  exit_price numeric(24, 10),
+  pnl_cents bigint,
+  exit_reason text CHECK (exit_reason IN ('target', 'stop', 'manual', 'time')),
+  updated_at timestamptz NOT NULL,
+  deleted boolean NOT NULL DEFAULT false,
+  server_seq bigint NOT NULL DEFAULT nextval('sync_seq')
+);
+CREATE INDEX IF NOT EXISTS agent_trade_status_idx ON agent_trade (status, quote_key);

@@ -13,7 +13,8 @@ const text = computed(() => {
   if (!t) return 'pas de cours';
   const age = app.now - t.t;
   const when = age < 90_000 ? 'en direct' : formatAge(t.t, app.now);
-  return t.via === 'direct' ? `${when} · Kraken direct` : when;
+  if (t.via === 'manual') return `saisi à la main ${formatAge(t.t, app.now)}`;
+  return t.via === 'direct' ? `${when} · direct` : when;
 });
 const stale = computed(() => !props.tick || app.now - props.tick.t > 3 * 86_400_000);
 </script>

@@ -83,12 +83,44 @@ export const watchlistItemSchema = z.object({
   sortOrder: z.number().int().default(0),
 });
 
+/**
+ * Opération proposée par l'agent. En phase d'entraînement, tout est fictif (mode « paper ») :
+ * aucun ordre ne part chez un courtier.
+ */
+export const agentTradeSchema = z.object({
+  ...syncFields,
+  quoteKey: z.string().min(1).max(80),
+  assetName: z.string().min(1).max(120),
+  currency,
+  mode: z.enum(['paper', 'real']),
+  signal: z.enum(['trend', 'reversion']),
+  status: z.enum(['proposed', 'open', 'closed', 'rejected', 'expired']),
+  reason: z.string().max(1000),
+  entryPrice: z.number().positive(),
+  stopPrice: z.number().positive(),
+  targetPrice: z.number().positive(),
+  quantity: z.number().nonnegative(),
+  /** Mise engagée, en centimes d'euro */
+  stakeCents: cents.nonnegative(),
+  leverage: z.number().min(1).max(5),
+  backtestWinRate: z.number().min(0).max(1),
+  backtestExpectancyPct: z.number(),
+  backtestSamples: z.number().int().nonnegative(),
+  proposedAt: isoDateTime,
+  openedAt: isoDateTime.nullable().default(null),
+  closedAt: isoDateTime.nullable().default(null),
+  exitPrice: z.number().positive().nullable().default(null),
+  pnlCents: cents.nullable().default(null),
+  exitReason: z.enum(['target', 'stop', 'manual', 'time']).nullable().default(null),
+});
+
 export type Profile = z.infer<typeof profileSchema>;
 export type Account = z.infer<typeof accountSchema>;
 export type Asset = z.infer<typeof assetSchema>;
 export type Transaction = z.infer<typeof transactionSchema>;
 export type CashFlow = z.infer<typeof cashFlowSchema>;
 export type WatchlistItem = z.infer<typeof watchlistItemSchema>;
+export type AgentTrade = z.infer<typeof agentTradeSchema>;
 
 /** Registre : nom d'entité → schéma et table SQL. */
 export const ENTITIES = {
@@ -98,6 +130,7 @@ export const ENTITIES = {
   transaction: { schema: transactionSchema, table: 'transaction' },
   cashFlow: { schema: cashFlowSchema, table: 'cash_flow' },
   watchlistItem: { schema: watchlistItemSchema, table: 'watchlist_item' },
+  agentTrade: { schema: agentTradeSchema, table: 'agent_trade' },
 } as const;
 
 export type EntityName = keyof typeof ENTITIES;
@@ -110,6 +143,7 @@ export interface EntityRecordMap {
   transaction: Transaction;
   cashFlow: CashFlow;
   watchlistItem: WatchlistItem;
+  agentTrade: AgentTrade;
 }
 
 export type AnyRecord = EntityRecordMap[EntityName];

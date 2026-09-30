@@ -6,6 +6,7 @@
 import Dexie, { type Table } from 'dexie';
 import type {
   Account,
+  AgentTrade,
   Asset,
   CashFlow,
   DailyClose,
@@ -24,6 +25,7 @@ export const LOCAL_TABLE: Record<EntityName, string> = {
   transaction: 'trades',
   cashFlow: 'cashFlow',
   watchlistItem: 'watchlistItem',
+  agentTrade: 'agentTrade',
 };
 
 export interface OutboxEntry {
@@ -36,8 +38,8 @@ export interface OutboxEntry {
 }
 
 export interface StoredPrice extends PriceTick {
-  /** D'où vient ce cours : la tour, ou une connexion directe de l'appareil */
-  via: 'tower' | 'direct';
+  /** D'où vient ce cours : la tour, une connexion directe de l'appareil, ou une saisie à la main */
+  via: 'tower' | 'direct' | 'manual';
   receivedAt: number;
 }
 
@@ -60,6 +62,7 @@ export class LocalDb extends Dexie {
   trades!: Table<Transaction, string>;
   cashFlow!: Table<CashFlow, string>;
   watchlistItem!: Table<WatchlistItem, string>;
+  agentTrade!: Table<AgentTrade, string>;
   outbox!: Table<OutboxEntry, string>;
   price!: Table<StoredPrice, string>;
   daily!: Table<StoredDaily, string>;
@@ -79,6 +82,8 @@ export class LocalDb extends Dexie {
       daily: 'quoteKey',
       meta: 'key',
     });
+    // Phase 3 : opérations de l'agent
+    this.version(2).stores({ agentTrade: 'id, status, quoteKey' });
   }
 
   entityTable(entity: EntityName): Table<{ id: string; updatedAt: string; deleted: boolean }, string> {

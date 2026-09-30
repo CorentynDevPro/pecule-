@@ -1,17 +1,43 @@
-# Pécule — phase 1 : suivi
+# Pécule
 
-Assistant d'investissement personnel, auto-hébergé sur ta tour Windows et utilisable comme
-application (PWA) sur ton iPhone, ton Mac et la tour elle-même.
+Assistant d'investissement personnel, utilisable comme application (PWA) sur ton iPhone, ton Mac
+et ta tour Windows. Il fonctionne **seul sur le téléphone** (hébergé sur GitHub Pages) et se relie
+à ta tour quand elle est en place.
 
-La phase 1 couvre le **suivi** :
+| Phase | Contenu | État |
+| --- | --- | --- |
+| 1 · Suivi | Profil et poches, portefeuille (PRU, plus-values), flux, cours en direct, conseil de versement | fait |
+| 2 · Analyse | Simulation Monte-Carlo à queues épaisses, statistiques (Sharpe, Sortino, pire baisse), frontière efficiente, test de stratégie hors échantillon | fait |
+| 3 · Agent | Signaux backtestés, contrôle de risque, positions fictives suivies en direct, journal, compteur des 90 jours | fait, en mode entraînement |
+| 4 · Affinage | Scénarios de crise, récapitulatif fiscal annuel | fait |
+| Suite | Agent en continu sur la tour, notifications push, IA locale (Ollama), exécution réelle plafonnée sur la crypto | après 90 jours d'entraînement réussis |
 
-- profil investisseur et répartition cible des quatre poches (socle, crypto, thèmes, levier) ;
-- portefeuille : comptes, actifs, achats, ventes, dividendes, frais, prix de revient (PRU), plus-values ;
-- flux : versements, retraits, entrées et sorties par mois ;
-- marchés : cours en direct (crypto 24 h/24, bourse aux heures d'ouverture), graphiques 24 h, 7 jours, 1 an ;
-- conseil de répartition du prochain versement, pour revenir vers la cible sans vendre (donc sans impôt).
+## Sur ton iPhone, sans la tour
 
-L'analyse (Monte-Carlo, Markowitz, backtests) et l'agent arrivent en phases 2 et 3.
+L'application est publiée sur `https://corentyndevpro.github.io/pecule/`.
+
+1. Ouvre l'adresse dans **Safari**, puis **Partager → Sur l'écran d'accueil**.
+2. Crypto et taux EUR/USD : en direct depuis Kraken, sans rien configurer.
+3. Actions américaines (Take-Two, EA…) : crée une clé gratuite sur twelvedata.com et colle-la dans
+   **Plus → Profil et appareil**. Elle reste sur ton téléphone.
+4. ETF européens (DCAM) : pas de source gratuite utilisable depuis un téléphone. Saisis le cours
+   de ton courtier (**Saisir le cours** sur la ligne du portefeuille) jusqu'à ce que la tour prenne le relais.
+
+Tes données restent dans le téléphone. Quand la tour sera prête, saisis son adresse
+(`tour.xxx.ts.net`) dans **Profil et appareil** : tout ce que tu as saisi y sera envoyé.
+Pense à **Exporter** une sauvegarde de temps en temps : sans tour, le téléphone est le seul à avoir tes données.
+
+## L'agent (phase 3)
+
+- Deux règles connues : cassure de tendance (plus haut 20 jours, moyenne 20 > moyenne 50) et
+  retour à la moyenne (cours à plus de 2 écarts-types sous sa moyenne 20 jours).
+- Chaque règle est rejouée sur l'historique de l'actif ; elle n'est proposée que si elle a gagné,
+  frais déduits, sur **chacune** des deux moitiés de l'historique.
+- Taille de position : perte au stop ≤ 2 % du capital ; au plus 3 positions ; levier ≤ 5 (≤ 2 en crypto) ;
+  coupe-circuit à −20 % sur le mois.
+- Tout est fictif (1 000 € d'entraînement). L'argent réel n'est envisagé qu'après 90 jours,
+  10 opérations fermées, un résultat positif et meilleur que l'ETF monde sur la même période.
+- Sur le téléphone, l'agent veille quand l'application est ouverte.
 
 ---
 
@@ -43,9 +69,9 @@ iPhone / Mac / tour ── PWA (Vue 3) ── IndexedDB locale ─┐
 
 | Dossier | Rôle |
 | --- | --- |
-| `apps/web` | PWA : Vue 3, TypeScript, Tailwind, ECharts, Dexie (IndexedDB), service worker |
+| `apps/web` | PWA : Vue 3, TypeScript, Tailwind, ECharts, Dexie (IndexedDB), service worker ; sources directes Kraken et Twelve Data |
 | `apps/api` | API : synchronisation, cours, relais temps réel (LISTEN/NOTIFY → WebSocket) |
-| `packages/shared` | Schémas de données et protocole, partagés par l'API et la PWA |
+| `packages/shared` | Schémas, protocole, moteur d'analyse et logique de l'agent, partagés par l'API et la PWA |
 | `services/feed` | Collecte des cours, bougies d'une minute, historiques quotidiens |
 | `infra/nginx` | Sert la PWA et relaie l'API |
 
@@ -156,9 +182,11 @@ commits au format Conventional Commits.
 
 Vérifié pendant le développement :
 
-- 8 tests d'API contre PostgreSQL 16, dont la diffusion en direct par WebSocket ;
+- 9 tests d'API contre PostgreSQL 16, dont la diffusion en direct par WebSocket et le CORS pour GitHub Pages ;
 - 16 tests du flux, dont l’écriture en base ;
-- 21 tests de la PWA, dont un trajet complet iPhone → tour → Mac → suppression → iPhone à travers l'API réelle ;
+- 51 tests de la PWA : calculs, synchronisation (dont un trajet iPhone → tour → Mac à travers l'API réelle),
+  moteur d'analyse, agent, fiscalité ;
+- la version GitHub Pages dans Chromium, format iPhone : démarrage sans tour, puis liaison à une tour ;
 - la PWA dans Chromium en format iPhone et ordinateur, thèmes clair et sombre, sans erreur console ;
 - le scénario de panne : tour arrêtée, application rouverte avec toutes ses données, saisie mise en attente.
 

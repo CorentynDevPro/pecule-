@@ -5,6 +5,7 @@ import { useAppStore, db } from '@/stores/app';
 import { DEFAULT_TARGETS, PROFILE_ID } from '@/domain/presets';
 import { formatAge, formatEuros, parseEuros, POCKET_LABELS } from '@/domain/format';
 import { ValidationError } from '@/db/repo';
+import { normalizeTowerUrl } from '@/device/settings';
 
 const app = useAppStore();
 
@@ -93,6 +94,43 @@ async function importData(ev: Event): Promise<void> {
 
 const sourceNames: Record<string, string> = { kraken: 'Crypto (Kraken)', td: 'Actions US (Twelve Data)', yf: 'Europe (Yahoo Finance)' };
 
+// --- Réglages de l'appareil -------------------------------------------------------------
+const towerInput = ref(app.settings.towerUrl ?? '');
+const tdKey = ref(app.settings.twelveDataKey);
+const checking = ref(false);
+const towerMessage = ref('');
+const towerOk = ref(false);
+
+async function applyTower(): Promise<void> {
+  towerMessage.value = '';
+  const url = normalizeTowerUrl(towerInput.value);
+  if (!url) {
+    towerOk.value = false;
+    towerMessage.value = 'Adresse invalide. Exemple : tour.tail1234.ts.net';
+    return;
+  }
+  checking.value = true;
+  const result = await app.testTower(url);
+  checking.value = false;
+  towerOk.value = result.ok;
+  towerMessage.value = result.ok ? 'Tour reliée : tes données vont s’y synchroniser.' : result.message;
+  if (result.ok) {
+    towerInput.value = url;
+    await app.updateSettings({ towerUrl: url });
+  }
+}
+
+async function useWithoutTower(): Promise<void> {
+  towerInput.value = '';
+  towerMessage.value = '';
+  await app.updateSettings({ towerUrl: null });
+}
+
+async function saveKey(): Promise<void> {
+  await app.updateSettings({ twelveDataKey: tdKey.value.trim() });
+  message.value = tdKey.value.trim() ? 'Clé Twelve Data enregistrée sur cet appareil.' : 'Clé Twelve Data retirée.';
+}
+
 const platform = computed(() => {
   const ua = navigator.userAgent;
   if (/iPhone|iPad/.test(ua)) return 'ios';
@@ -149,22 +187,44 @@ const installed = window.matchMedia('(display-mode: standalone)').matches || (na
       <button type="submit" class="btn-primary w-full">Enregistrer le profil</button>
     </form>
 
-    <section class="card space-y-3 p-5">
-      <h2 class="text-[16px] font-semibold">Connexion et sources</h2>
-      <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[14px]">
-        <dt class="text-ink-2">Tour</dt>
-        <dd>{{ app.syncState.towerReachable ? 'joignable' : app.syncState.towerReachable === false ? 'injoignable' : '…' }}</dd>
-        <dt class="text-ink-2">Dernière synchro</dt>
-        <dd>{{ formatAge(app.syncState.lastSyncAt, app.now) }}</dd>
-        <dt class="text-ink-2">En attente</dt>
+    <section class="card space-y-4 p-5">
+      <h2 class="text-[16px] font-semibold">Cet appareil</h2>
+
+      <div>
+        <label class="label" for="tower-url">Adresse de la tour</label>
+        <div class="flex gap-2">
+          <input id="tower-url" v-model="towerInput" class="field min-w-0 flex-1" placeholder="tour.tail1234.ts.net" autocomplete="off" autocapitalize="off" spellcheck="false" />
+          <button class="btn-ghost shrink-0" :disabled="checking" @click="applyTower">{{ checking ? '…' : 'Relier' }}</button>
+        </div>
+        <p class="mt-1 text-[12px] text-muted">
+          {{ app.settings.towerUrl === null ? 'Aucune tour : tout fonctionne sur cet appareil. Tu pourras relier ta tour plus tard, tes données y seront envoyées.' : app.settings.towerUrl === '' ? 'Tour : même adresse que l’application.' : `Tour : ${app.settings.towerUrl}` }}
+        </p>
+        <button v-if="app.settings.towerUrl !== null" class="mt-1 text-[12px] font-semibold text-accent" @click="useWithoutTower">Utiliser sans tour</button>
+        <p v-if="towerMessage" class="mt-1 text-[13px]" :class="towerOk ? 'text-up' : 'text-down'">{{ towerMessage }}</p>
+      </div>
+
+      <div>
+        <label class="label" for="td-key">Clé Twelve Data (facultatif)</label>
+        <div class="flex gap-2">
+          <input id="td-key" v-model="tdKey" type="password" class="field min-w-0 flex-1" placeholder="gratuite sur twelvedata.com" autocomplete="off" />
+          <button class="btn-ghost shrink-0" @click="saveKey">Enregistrer</button>
+        </div>
+        <p class="mt-1 text-[12px] text-muted">Sert aux actions américaines (Take-Two, EA…) quand la tour est absente. Elle reste sur cet appareil.</p>
+      </div>
+
+      <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 border-t border-line pt-3 text-[14px]">
+        <template v-if="app.settings.towerUrl !== null">
+          <dt class="text-ink-2">Dernière synchro</dt>
+          <dd>{{ formatAge(app.syncState.lastSyncAt, app.now) }}</dd>
+        </template>
+        <dt class="text-ink-2">En attente d’envoi</dt>
         <dd>{{ app.syncState.pending }} modification{{ app.syncState.pending > 1 ? 's' : '' }}</dd>
         <template v-for="(s, name) in app.liveState.feed" :key="name">
           <dt class="text-ink-2">{{ sourceNames[name] ?? name }}</dt>
-          <dd :class="s.ok ? '' : 'text-down'">{{ s.ok ? 'OK' : 'en erreur' }} · dernier cours {{ formatAge(s.lastTickAt, app.now) }}</dd>
+          <dd :class="s.ok ? '' : 'text-down'">{{ s.ok ? 'OK' : 'indisponible' }}<template v-if="s.lastTickAt"> · dernier cours {{ formatAge(s.lastTickAt, app.now) }}</template><template v-if="!s.ok && s.error"> · {{ s.error }}</template></dd>
         </template>
       </dl>
-      <p v-if="app.syncState.error" class="text-[13px] text-ink-2">{{ app.syncState.error }}</p>
-      <button class="btn-ghost w-full" @click="app.syncNow()">Synchroniser maintenant</button>
+      <button v-if="app.settings.towerUrl !== null" class="btn-ghost w-full" @click="app.syncNow()">Synchroniser maintenant</button>
     </section>
 
     <section class="card space-y-2 p-5 text-[14px]">
@@ -176,7 +236,7 @@ const installed = window.matchMedia('(display-mode: standalone)').matches || (na
         <p v-else-if="platform === 'windows'">Dans Edge ou Chrome : icône <b>Installer</b> dans la barre d’adresse, puis épingle Pécule à la barre des tâches.</p>
         <p v-else>Utilise l’option « Installer l’application » de ton navigateur.</p>
       </template>
-      <p class="text-[12px] text-muted">Une fois installée, Pécule s’ouvre même tour éteinte, avec tes données et les derniers cours connus.</p>
+      <p class="text-[12px] text-muted">Une fois installée, Pécule s’ouvre même hors connexion, avec tes données et les derniers cours connus.</p>
     </section>
 
     <section class="card space-y-3 p-5">

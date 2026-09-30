@@ -29,7 +29,8 @@ export class SyncEngine {
 
   constructor(
     private readonly db: LocalDb,
-    private readonly baseUrl = '',
+    /** Adresse de la tour ('' = même adresse que l'application), ou fonction qui la lit ; null = pas de tour */
+    private readonly baseUrl: string | (() => string | null) = '',
     private readonly fetcher: Fetcher = (u, i) => fetch(u, i),
   ) {}
 
@@ -88,6 +89,12 @@ export class SyncEngine {
   }
 
   private async run(): Promise<void> {
+    const base = typeof this.baseUrl === 'function' ? this.baseUrl() : this.baseUrl;
+    if (base === null) {
+      // Pas de tour sur cet appareil : tout reste en local, la file d'attente attend une tour.
+      this.set({ towerReachable: null, error: null, pending: await this.db.outbox.count() });
+      return;
+    }
     this.set({ syncing: true });
     try {
       const since = await this.db.getMeta<number>('cursor', 0);
@@ -102,7 +109,7 @@ export class SyncEngine {
       const timeout = setTimeout(() => controller.abort(), 10_000);
       let response: Response;
       try {
-        response = await this.fetcher(`${this.baseUrl}/api/sync`, {
+        response = await this.fetcher(`${base}/api/sync`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ since, changes }),

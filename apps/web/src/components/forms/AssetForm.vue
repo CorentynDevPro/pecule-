@@ -4,7 +4,9 @@ import { computed, ref } from 'vue';
 import type { Asset, Pocket } from '@pecule/shared';
 import { useAppStore } from '@/stores/app';
 import { ASSET_PRESETS, type AssetPreset } from '@/domain/presets';
-import { POCKET_LABELS } from '@/domain/format';
+import { formatPrice, POCKET_LABELS } from '@/domain/format';
+import { priceKeyOf } from '@/domain/portfolio';
+import PriceAge from '@/components/PriceAge.vue';
 import { ValidationError } from '@/db/repo';
 
 const props = defineProps<{ asset?: Asset }>();
@@ -47,6 +49,23 @@ async function submit(): Promise<void> {
   } catch (e) {
     error.value = e instanceof ValidationError ? e.message : 'Enregistrement impossible';
   }
+}
+
+// --- Cours saisi à la main -----------------------------------------------------------
+const manualPrice = ref('');
+const manualMessage = ref('');
+const currentTick = computed(() => (props.asset ? app.liveState.prices[priceKeyOf(props.asset)] : undefined));
+
+function saveManualPrice(): void {
+  if (!props.asset) return;
+  const value = Number(manualPrice.value.replace(/\s/g, '').replace(',', '.'));
+  if (!Number.isFinite(value) || value <= 0) {
+    manualMessage.value = 'Cours invalide.';
+    return;
+  }
+  app.setManualPrice(priceKeyOf(props.asset), value, props.asset.currency);
+  manualMessage.value = 'Cours enregistré. Un cours automatique plus récent le remplacera.';
+  manualPrice.value = '';
 }
 
 async function remove(): Promise<void> {
@@ -115,5 +134,19 @@ async function remove(): Promise<void> {
         <button v-if="asset" type="button" class="btn-danger" @click="remove">Supprimer</button>
       </div>
     </form>
+
+    <section v-if="asset" class="mt-6 space-y-2 border-t border-line pt-4">
+      <h3 class="text-[15px] font-semibold">Cours actuel</h3>
+      <p class="text-[14px]">
+        <b class="num">{{ formatPrice(currentTick?.p, currentTick?.c ?? asset.currency) }}</b>
+        · <PriceAge :tick="currentTick" />
+      </p>
+      <p class="text-[12px] text-muted">Sans source automatique (un ETF européen sans la tour, par exemple), saisis le cours affiché par ton courtier.</p>
+      <div class="flex gap-2">
+        <input id="manual-price" v-model="manualPrice" class="field num min-w-0 flex-1" inputmode="decimal" :placeholder="`Cours en ${asset.currency}`" />
+        <button type="button" class="btn-ghost shrink-0" @click="saveManualPrice">Enregistrer</button>
+      </div>
+      <p v-if="manualMessage" class="text-[13px] text-ink-2">{{ manualMessage }}</p>
+    </section>
   </div>
 </template>

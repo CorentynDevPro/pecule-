@@ -83,9 +83,13 @@ export type PriceMap = Record<string, PriceTick | undefined>;
  * Prix d'un actif en euros. Les taux de change sont exprimés en devise pour 1 euro
  * (EUR/USD = 1,17 signifie 1 € = 1,17 $) : on divise.
  */
+/** Clé sous laquelle chercher le cours d'un actif : sa source, ou une clé de saisie manuelle. */
+export function priceKeyOf(asset: Asset): string {
+  return asset.quoteKey ?? `manual:${asset.id}`;
+}
+
 export function priceInEur(asset: Asset, prices: PriceMap): { price: number; tick: PriceTick } | null {
-  if (!asset.quoteKey) return null;
-  const tick = prices[asset.quoteKey];
+  const tick = prices[priceKeyOf(asset)];
   if (!tick) return null;
   const currency = tick.c || asset.currency;
   const fxKey = fxKeyFor(currency);

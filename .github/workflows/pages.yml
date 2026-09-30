@@ -1,0 +1,46 @@
+# Publie la PWA autonome sur GitHub Pages à chaque envoi sur main.
+# Adresse : https://<compte>.github.io/pecule/
+name: Déployer la PWA
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Tests
+        run: npm test -w apps/web
+
+      - name: Construire la version autonome
+        run: npm run build -w apps/web
+        env:
+          VITE_STANDALONE: '1'
+          VITE_BASE: /${{ github.event.repository.name }}/
+
+      - name: Publier sur la branche gh-pages
+        run: |
+          cd apps/web/dist
+          touch .nojekyll
+          git init -q -b gh-pages
+          git add -A
+          git -c user.name="github-actions" -c user.email="github-actions@users.noreply.github.com" commit -qm "Déploiement ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" gh-pages

@@ -137,6 +137,22 @@ suite('API Pécule', () => {
     ws.close();
   });
 
+  it('accepte les appels de l’application hébergée sur GitHub Pages, y compris vers une adresse privée', async () => {
+    const res = await ctx.app.inject({
+      method: 'OPTIONS',
+      url: '/api/sync',
+      headers: {
+        origin: 'https://coco.github.io',
+        'access-control-request-method': 'POST',
+        'access-control-request-private-network': 'true',
+      },
+    });
+    expect(res.headers['access-control-allow-origin']).toBe('https://coco.github.io');
+    expect(res.headers['access-control-allow-private-network']).toBe('true');
+    const other = await ctx.app.inject({ method: 'OPTIONS', url: '/api/sync', headers: { origin: 'https://evil.example', 'access-control-request-method': 'POST' } });
+    expect(other.headers['access-control-allow-origin']).toBeUndefined();
+  });
+
   it('indique son état de santé', async () => {
     const res = await ctx.app.inject({ url: '/api/health' });
     expect(res.json()).toMatchObject({ ok: true, db: true, live: true });

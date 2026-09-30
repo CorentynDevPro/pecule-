@@ -22,12 +22,13 @@ export const ASSET_PRESETS: AssetPreset[] = [
   { name: 'TotalEnergies', symbol: 'TTE', isin: 'FR0000120271', assetClass: 'stock', pocket: 'themes', currency: 'EUR', quoteKey: 'yf:TTE.PA', hint: 'Énergie et pétrole, éligible PEA' },
 ];
 
+/** Favoris par défaut, avec des identifiants fixes partagés par tous les appareils. */
 export const WATCHLIST_DEFAULTS = [
-  { quoteKey: 'kraken:BTC/EUR', label: 'Bitcoin', currency: 'EUR' },
-  { quoteKey: 'kraken:ETH/EUR', label: 'Ethereum', currency: 'EUR' },
-  { quoteKey: 'yf:DCAM.PA', label: 'PEA Monde (DCAM)', currency: 'EUR' },
-  { quoteKey: 'td:TTWO', label: 'Take-Two', currency: 'USD' },
-  { quoteKey: 'yf:UBI.PA', label: 'Ubisoft', currency: 'EUR' },
+  { id: '00000000-0000-4000-8000-0000000000a1', quoteKey: 'kraken:BTC/EUR', label: 'Bitcoin', currency: 'EUR' },
+  { id: '00000000-0000-4000-8000-0000000000a2', quoteKey: 'kraken:ETH/EUR', label: 'Ethereum', currency: 'EUR' },
+  { id: '00000000-0000-4000-8000-0000000000a3', quoteKey: 'yf:DCAM.PA', label: 'PEA Monde (DCAM)', currency: 'EUR' },
+  { id: '00000000-0000-4000-8000-0000000000a4', quoteKey: 'td:TTWO', label: 'Take-Two', currency: 'USD' },
+  { id: '00000000-0000-4000-8000-0000000000a5', quoteKey: 'yf:UBI.PA', label: 'Ubisoft', currency: 'EUR' },
 ];
 
 export const DEFAULT_TARGETS: Record<Pocket, number> = { core: 50, crypto: 25, themes: 15, leverage: 10 };

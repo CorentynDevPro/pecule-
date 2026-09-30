@@ -5,6 +5,8 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().default(3000),
   HOST: z.string().default('0.0.0.0'),
   MIGRATIONS_DIR: z.string().default('migrations'),
+  /** Origines autorisées à appeler l'API depuis un navigateur, séparées par des virgules */
+  CORS_ORIGINS: z.string().default('https://*.github.io'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 });
 

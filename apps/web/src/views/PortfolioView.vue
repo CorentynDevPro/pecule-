@@ -8,6 +8,7 @@ import PriceAge from '@/components/PriceAge.vue';
 import AccountForm from '@/components/forms/AccountForm.vue';
 import AssetForm from '@/components/forms/AssetForm.vue';
 import TransactionForm from '@/components/forms/TransactionForm.vue';
+import { priceKeyOf } from '@/domain/portfolio';
 import { ACCOUNT_LABELS, formatDate, formatEuros, formatPct, formatPrice, formatQuantity, KIND_LABELS, POCKET_LABELS } from '@/domain/format';
 
 const app = useAppStore();
@@ -35,7 +36,12 @@ const recent = computed(() =>
   [...app.transactions].sort((a, b) => (a.tradeDate === b.tradeDate ? (a.updatedAt < b.updatedAt ? 1 : -1) : a.tradeDate < b.tradeDate ? 1 : -1)).slice(0, 50),
 );
 const assetName = (id: string) => app.assets.find((a) => a.id === id)?.name ?? 'Actif supprimé';
-const tickOf = (a: Asset) => (a.quoteKey ? app.liveState.prices[a.quoteKey] : undefined);
+const tickOf = (a: Asset) => app.liveState.prices[priceKeyOf(a)];
+/** Cours absent ou vieux de plus d'un jour : on propose la saisie manuelle. */
+const needsPrice = (a: Asset) => {
+  const t = tickOf(a);
+  return !t || app.now - t.t > 86_400_000;
+};
 const pnlClass = (v: number | null) => (v === null || v === 0 ? 'text-ink-2' : v > 0 ? 'text-up' : 'text-down');
 </script>
 
@@ -61,6 +67,14 @@ const pnlClass = (v: number | null) => (v === null || v === 0 ? 'text-ink-2' : v
                 {{ formatQuantity(p.quantity) }} × {{ formatPrice(p.priceEur) }} · PRU {{ formatPrice(p.averageCost) }}
               </span>
               <PriceAge :tick="tickOf(p.asset)" />
+              <span
+                v-if="needsPrice(p.asset)"
+                role="button"
+                tabindex="0"
+                class="ml-2 text-[11px] font-semibold text-accent"
+                @click.stop="panel = { kind: 'asset', asset: p.asset }"
+                @keydown.enter.stop="panel = { kind: 'asset', asset: p.asset }"
+              >Saisir le cours</span>
             </span>
             <span class="shrink-0 text-right">
               <span class="num block text-[15px] font-semibold">{{ formatEuros(p.valueCents ?? p.costCents) }}</span>
