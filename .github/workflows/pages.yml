@@ -34,7 +34,7 @@ jobs:
         run: npm run build -w apps/web
         env:
           VITE_STANDALONE: '1'
-          VITE_BASE: /${{ github.event.repository.name }}/
+          VITE_BASE: ./
 
       - name: Publier sur la branche gh-pages
         run: |

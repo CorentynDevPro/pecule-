@@ -14,7 +14,7 @@ et ta tour Windows. Il fonctionne **seul sur le téléphone** (hébergé sur Git
 
 ## Sur ton iPhone, sans la tour
 
-L'application est publiée sur `https://corentyndevpro.github.io/pecule/`.
+L’application est publiée sur `https://corentyndevpro.github.io/pecule-/` (GitHub Pages) et sur `https://raw.githack.com/CorentynDevPro/pecule-/gh-pages/index.html` (secours).
 
 1. Ouvre l'adresse dans **Safari**, puis **Partager → Sur l'écran d'accueil**.
 2. Crypto et taux EUR/USD : en direct depuis Kraken, sans rien configurer.

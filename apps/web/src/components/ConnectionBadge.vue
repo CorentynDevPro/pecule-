@@ -13,6 +13,9 @@ const status = computed(() => {
   if (mode === 'tower') {
     return { tone: 'ok', title: 'Tour connectée', detail: `Synchro ${formatAge(app.syncState.lastSyncAt, app.now)}${pendingText}` };
   }
+  if (mode === 'offline') {
+    return { tone: 'bad', title: 'Hors ligne', detail: `Dernières valeurs connues${pendingText}` };
+  }
   if (app.liveState.standalone) {
     const kraken = app.liveState.feed.kraken;
     if (kraken && !kraken.ok) return { tone: 'warn', title: 'Sur ce téléphone', detail: 'Kraken injoignable, derniers cours connus' };

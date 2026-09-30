@@ -7,7 +7,7 @@ import App from './App.vue';
 
 const router = createRouter({
   // Sur GitHub Pages, les adresses en « #/ » évitent les erreurs 404 au rechargement d'un écran.
-  history: STANDALONE_BUILD ? createWebHashHistory(import.meta.env.BASE_URL) : createWebHistory(import.meta.env.BASE_URL),
+  history: STANDALONE_BUILD ? createWebHashHistory() : createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/', component: () => import('./views/DashboardView.vue') },
     { path: '/portefeuille', component: () => import('./views/PortfolioView.vue') },

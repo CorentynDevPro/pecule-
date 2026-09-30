@@ -4,7 +4,7 @@ import vue from '@vitejs/plugin-vue';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
-// Build autonome (GitHub Pages) : VITE_STANDALONE=1 VITE_BASE=/pecule/
+// Build autonome : VITE_STANDALONE=1 VITE_BASE=./ (chemins relatifs, publiable dans n'importe quel dossier)
 const base = process.env.VITE_BASE ?? '/';
 
 export default defineConfig({
@@ -38,7 +38,8 @@ export default defineConfig({
       workbox: {
         // Toute l'application est mise en cache : elle s'ouvre même si la tour est éteinte.
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
-        navigateFallback: `${base}index.html`,
+        // Adresse relative : l'application fonctionne quel que soit le dossier où elle est publiée
+        navigateFallback: base === './' ? 'index.html' : `${base}index.html`,
         navigateFallbackDenylist: [/^\/api\//],
         cleanupOutdatedCaches: true,
         // L'API n'est jamais servie depuis le cache : les données locales vivent dans IndexedDB.
