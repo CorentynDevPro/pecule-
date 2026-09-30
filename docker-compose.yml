@@ -1,0 +1,76 @@
+# Pécule — pile auto-hébergée sur la tour Windows (Docker Desktop + WSL2).
+# Tous les services redémarrent seuls après une coupure ou un redémarrage de la tour.
+
+services:
+  db:
+    image: timescale/timescaledb:latest-pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: pecule
+      POSTGRES_USER: pecule
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Définis POSTGRES_PASSWORD dans .env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pecule -d pecule"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://pecule:${POSTGRES_PASSWORD}@db:5432/pecule
+      PORT: 3000
+    depends_on:
+      db:
+        condition: service_healthy
+
+  feed:
+    build: ./services/feed
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://pecule:${POSTGRES_PASSWORD}@db:5432/pecule
+      TWELVEDATA_API_KEY: ${TWELVEDATA_API_KEY:-}
+      TWELVEDATA_DAILY_CREDITS: ${TWELVEDATA_DAILY_CREDITS:-760}
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_started
+
+  web:
+    # Image nginx qui sert la PWA compilée et relaie /api vers l'API.
+    build:
+      context: .
+      dockerfile: infra/nginx/Dockerfile
+    restart: unless-stopped
+    ports:
+      # Exposé uniquement en local : Tailscale se charge du HTTPS et de l'accès distant.
+      - "127.0.0.1:${WEB_PORT:-8080}:80"
+    depends_on:
+      - api
+
+  backup:
+    # Sauvegarde quotidienne de la base dans ./backups (à synchroniser vers le NAS).
+    image: timescale/timescaledb:latest-pg16
+    restart: unless-stopped
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./backups:/backups
+    entrypoint: >
+      sh -c 'while true; do
+        pg_dump -h db -U pecule -d pecule -Fc -f /backups/pecule-$$(date +%F).dump &&
+        find /backups -name "pecule-*.dump" -mtime +30 -delete;
+        sleep 86400;
+      done'
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db-data:
