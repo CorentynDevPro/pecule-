@@ -25,9 +25,6 @@ const status = computed(() => {
   if (mode === 'direct') {
     return { tone: 'warn', title: 'Mode autonome', detail: `Tour injoignable, crypto en direct via Kraken${pendingText}` };
   }
-  if (mode === 'offline') {
-    return { tone: 'bad', title: 'Hors ligne', detail: `Dernières valeurs connues${pendingText}` };
-  }
   if (app.syncState.towerReachable === false) {
     return { tone: 'bad', title: 'Tour injoignable', detail: `Tes données restent disponibles, cours figés${pendingText}` };
   }
